@@ -21,7 +21,7 @@ export default function RulesAdmin() {
   const [tab, setTab] = useState<'rules' | 'users' | 'audit'>('rules');
   const [editing, setEditing] = useState<Partial<Rule> & { id?: number } | null>(null);
   const [msg, setMsg] = useState('');
-  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'Inspector' });
+  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'Inspector', password: '' });
 
   const load = () => {
     Promise.all([apiGet('/api/rules'), apiGet('/api/users'), apiGet('/api/audit?limit=100')])
@@ -58,17 +58,25 @@ export default function RulesAdmin() {
   };
 
   const addUser = async () => {
-    if (!newUser.name.trim() || !newUser.email.trim()) { setMsg('Name and e-mail are required.'); return; }
-    try {
-      const u = (await apiPost('/api/users', newUser)) as User;
-      setUsers([...users, u]);
-      setNewUser({ name: '', email: '', role: 'Inspector' });
-      setMsg(`${u.name} added as ${u.role}.`);
-    } catch (e) {
-      setMsg(e instanceof Error ? e.message : 'Could not add user.');
-    }
-  };
+  if (!newUser.name.trim() || !newUser.email.trim() || !newUser.password) {
+    setMsg('Name, e-mail and password are required.');
+    return;
+  }
 
+  if (newUser.password.length < 8) {
+    setMsg('Password must be at least 8 characters.');
+    return;
+  }
+
+  try {
+    const u = (await apiPost('/api/users', newUser)) as User;
+    setUsers([...users, u]);
+    setNewUser({ name: '', email: '', role: 'Inspector', password: '' });
+    setMsg(`${u.name} added as ${u.role}.`);
+  } catch (e) {
+    setMsg(e instanceof Error ? e.message : 'Could not add user.');
+  }
+};
   const toggleUser = async (u: User) => {
     const upd = (await apiPut('/api/users', { id: u.id, active: !u.active })) as User;
     setUsers(users.map((x) => (x.id === u.id ? upd : x)));
@@ -142,7 +150,16 @@ export default function RulesAdmin() {
             <div className="mt-3 space-y-3">
               <input value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="Full name" className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm" />
               <input value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="Official e-mail" className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm" />
+              <input
+  value={newUser.password}
+  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+  placeholder="Temporary password (min 8 characters)"
+  type="password"
+  minLength={8}
+  className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm"
+/>
               <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm"><option>Inspector</option><option>Senior Inspector</option><option>Administrator</option><option>Business User</option></select>
+
               <button onClick={addUser} className="w-full rounded-lg bg-navy px-4 py-2.5 text-sm font-bold text-white hover:bg-navy-deep"><Plus size={15} className="mr-1 inline" /> Add user</button>
             </div>
           </div>
